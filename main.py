@@ -5,6 +5,7 @@ import simpleaudio as sa
 from pydub import AudioSegment
 import numpy as np
 
+
 # Initialize Pygame
 pygame.init()
 pygame.display.set_caption("RU Revolution Editor by Luke Cardoza")
@@ -13,7 +14,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 display = pygame.Surface((WIDTH // 2, HEIGHT // 2))  # Smaller surface to render onto and scale everything up
 clock = pygame.time.Clock()
 
-p = 0.00  # Current position in the song in seconds
+p = np.float64(0.0)  # Current position in the song in seconds
 
 # Initialize Pygame mixer
 pygame.mixer.init()
@@ -50,25 +51,53 @@ arrow_img = [
 for i in range(len(arrow_img)):
     arrow_img[i] = arrow_img[i].convert_alpha()
 
+# Preload all the note audio files (assuming 'notes/{note}.wav' format for all notes)
+note_audio_files = {}
+for pitch in set(note[0] for note in note_list):  # Get unique pitches
+    note_audio_files[pitch] = sa.WaveObject.from_wave_file(f"notes/{pitch}.wav")  # Preload the note
 
+
+def play(note):
+    # Load the piano note (wav file)
+    note = AudioSegment.from_wav(f"notes/{note}.wav")
+
+    # Export the note to a temporary wav file and play it
+    note.export(f"temp_note{note}.wav", format="wav")
+    wave_obj = sa.WaveObject.from_wave_file(f"temp_note{note}.wav")
+
+    # Play the sound
+    play_obj = wave_obj.play()
+
+    # Wait until the sound finishes playing
+    play_obj.wait_done()
 
 # Main loop
 while True:
     #print(movement)
     # Update p based on movement or time
+    print(p)
+    #each item in note_list: (pitch(C4=60), start time, duration)
     if movement[0]:
-        p += 1  # Move forward when UP key is held
+        p += 0.0333333333  # Move forward when UP key is held
     elif movement[1] and p > 0:
         p -= 1  # Move backward when DOWN key is held
+    if p < 0:
+        p = 0  # Prevent p from going negative
 
+    # Time window: Last 0.033333 seconds
+    time_window = 0.0333333333
+    """
+    # Check if a note's start time is within the last 0.033333 seconds
+    while current_note_index < len(note_list) and p - time_window <= note_list[current_note_index][1] <= p:
+        pitch, start, duration = note_list[current_note_index]
+        play(pitch)
+        current_note_index += 1
+    """
     # Fill display
     display.fill('grey')
 
-    #each item in note_list: (pitch(C4=60), start time, duration)
-    print(note_list)
 
-    if p < 0:
-        p = 0  # Prevent p from going negative
+
 
 
     # Handle arrow display
