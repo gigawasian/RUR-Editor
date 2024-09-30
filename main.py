@@ -81,7 +81,7 @@ def play(note):
     else:
         print(f"Warning: No audio file loaded for note {note}")
 def display_text():
-    print(f"#{p}\tCurrent note: {note_to_str[note_list[p][0]]} ({note_list[p][0]})\tLength: {note_list[p][2].item()}\tElapsed: {note_list[p][1].item()}"
+    print(f"#{p}\tCurrent note: {note_to_str[note_list[p][0]]} ({note_list[p][0]})\tArrows: {'None.' if list(output_json[f"note{p}"]["arrows"]) == [] else list(output_json[f"note{p}"]["arrows"])}\tElapsed: {note_list[p][1].item()}"
           +f"\nPress 'E' to edit arrows on current note, and 'O' to output and save.")
 def save():
     path=input("Enter the file name (without extension). Press Enter to cancel.\n")
@@ -107,11 +107,11 @@ for n in range(len(note_list)):
 first_up_press = True
 e=False
 o=False
+r=False
 edit_mode = False
-frames = 0
 # Main loop
 while True:
-    if movement[0]:
+    if movement[0]: # Up arrow pressed
         if edit_mode:
             print("Exited Edit Mode. ")
             edit_mode = False
@@ -122,7 +122,7 @@ while True:
         display_text()
         play(note_list[p][0])
         movement[0] = False
-    elif movement[1] and p > 0:
+    elif movement[1] and p > 0: # Down arrow pressed
         if edit_mode:
             print("Exited Edit Mode. ")
             edit_mode = False
@@ -132,19 +132,39 @@ while True:
         movement[1] = False
     if(e): # if e pressed, enable/disable edit mode
         if not edit_mode:
-            print(f"Editing note: {note_to_str[note_list[p][0]]}. Press 'E' again to exit.")
+            print(f"Editing arrows of note: {note_to_str[note_list[p][0]]}. Press 'R' to remove arrow(s). Press 'E' again to exit.")
             edit_mode = True
         else:
             print("Exited Edit Mode. ")
             edit_mode = False
         e = False
     if(edit_mode):
+        if(r):
+            rmv=input("Remove which note (press Enter to cancel)? \n")
+            if rmv == "":
+                print("Removal cancelled. ")
+                r=False
+            elif rmv in ('up', 'down', 'left', 'right'):
+                arrow_set = set(output_json[f"note{p}"]["arrows"])
+                if rmv in arrow_set:
+                    arrow_set.remove(rmv)
+                    output_json[f"note{p}"]["arrows"]=arrow_set
+                    print("Note removed. ")
+                    r=False
+                else:
+                    print(f"{rmv} is not in note {note_to_str[note_list[p][0]]}. ")
+                    # r remains True - ask again
+            else:
+                print(f"{rmv} is not a valid arrow. Please enter either: 'up', 'down', 'left', or 'right'. ")
+                # r remains True - ask again
         if current_arrow != '':
             # if the user presses a WASD key in edit mode, add it to the output_json note's arrows (list-set thing prevents duplicates.)
             print(f"Added: {current_arrow}. ")
             arrow_set = set(output_json[f"note{p}"]["arrows"])
             arrow_set.add(current_arrow)
             output_json[f"note{p}"]["arrows"]=list(arrow_set)
+    if(r and not edit_mode):
+        r = False
     if(o): # if o pressed, output the file
         if edit_mode:
             print("Exited Edit Mode. ")
@@ -175,7 +195,6 @@ while True:
 
     # Only allow the key press for one frame at a time to prevent repeats
     current_arrow = ''
-    frames += 1
 
 
     # Event loop
@@ -201,6 +220,8 @@ while True:
                 e = True
             if event.key == pygame.K_o:
                 o = True
+            if event.key == pygame.K_r:
+                r = True
 
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_UP:
