@@ -8,11 +8,14 @@ import numpy as np
 
 # Initialize Pygame
 pygame.init()
-pygame.display.set_caption("RU Revolution Editor by Luke Cardoza")
+pygame.display.set_caption("RUR-Editor by Luke Cardoza")
 WIDTH, HEIGHT = 640, 480
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 display = pygame.Surface((WIDTH // 2, HEIGHT // 2))  # Smaller surface to render onto and scale everything up
 clock = pygame.time.Clock()
+bg = pygame.image.load('bg.png').convert()
+bg = pygame.transform.scale(bg, (500, 500))
+bg_rect = bg.get_rect(center=(250, 0))
 
 p = 0  # Current position in the song in seconds
 note_to_str = {
@@ -80,26 +83,38 @@ def play(note):
 def display_text():
     print(f"#{p}\tCurrent note: {note_to_str[note_list[p][0]]} ({note_list[p][0]})\tLength: {note_list[p][2].item()}\tElapsed: {note_list[p][1].item()}"
           +f"\nPress 'E' to edit arrows on current note, and 'O' to output and save.")
+def save():
+    path=input("Enter the file name (without extension). Press Enter to cancel.\n")
+    if path=='':
+        print("Save cancelled.")
+        return
+    f = open(f"{path}.json", "w")
+    json.dump(output_json, f)
+    f.close()
+    print(f"File saved to {path}.json")
+    return
 output_json={}
-note_number=0
-for n in note_list:
-    pitch, start, duration = n
+for n in range(len(note_list)):
+    pitch, start, duration = note_list[n]
     temp = {
         "pitch": pitch,
         "start": start,
         "duration": duration,
         "arrows": []
     }
-    output_json[f"note{note_number}"]=temp
-    note_number+=1
+    output_json[f"note{n}"]=temp
 #print(json.dumps(output_json))
 first_up_press = True
 e=False
+o=False
 edit_mode = False
+frames = 0
 # Main loop
 while True:
     if movement[0]:
-        #print(note_list[p][0])
+        if edit_mode:
+            print("Exited Edit Mode. ")
+            edit_mode = False
         if not first_up_press:
             p = p+1 if p <len(note_list)-1 else p  # Move forward when UP key is pressed
         else:
@@ -108,12 +123,14 @@ while True:
         play(note_list[p][0])
         movement[0] = False
     elif movement[1] and p > 0:
-        #print(note_list[p][0])
+        if edit_mode:
+            print("Exited Edit Mode. ")
+            edit_mode = False
         p = p-1 if p>0 else p  # Move backward when DOWN key is pressed and don't go below zero
         display_text()
         play(note_list[p][0])
         movement[1] = False
-    if(e):
+    if(e): # if e pressed, enable/disable edit mode
         if not edit_mode:
             print(f"Editing note: {note_to_str[note_list[p][0]]}. Press 'E' again to exit.")
             edit_mode = True
@@ -124,17 +141,22 @@ while True:
     if(edit_mode):
         if current_arrow != '':
             # if the user presses a WASD key in edit mode, add it to the output_json note's arrows (list-set thing prevents duplicates.)
-            output_json[f"note{p}"].arrows=list(set(output_json[f"note{p}"].arrows).add(current_arrow))
-
+            print(f"Added: {current_arrow}. ")
+            arrow_set = set(output_json[f"note{p}"]["arrows"])
+            arrow_set.add(current_arrow)
+            output_json[f"note{p}"]["arrows"]=list(arrow_set)
+    if(o): # if o pressed, output the file
+        if edit_mode:
+            print("Exited Edit Mode. ")
+            edit_mode = False
+        save()
+        o = False
 
 
     
     # Fill display
     display.fill('grey')
-
-
-
-
+    display.blit(bg, bg_rect)
 
     # Handle arrow display
     if current_arrow == "up":
@@ -153,6 +175,7 @@ while True:
 
     # Only allow the key press for one frame at a time to prevent repeats
     current_arrow = ''
+    frames += 1
 
 
     # Event loop
@@ -176,6 +199,8 @@ while True:
                 current_arrow = "right"
             if event.key == pygame.K_e:
                 e = True
+            if event.key == pygame.K_o:
+                o = True
 
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_UP:
