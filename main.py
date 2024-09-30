@@ -1,8 +1,8 @@
 import pygame
 import pretty_midi
-import time
-import simpleaudio as sa
-from pydub import AudioSegment
+import time, json
+#import simpleaudio as sa
+#from pydub import AudioSegment
 import numpy as np
 
 
@@ -14,7 +14,17 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 display = pygame.Surface((WIDTH // 2, HEIGHT // 2))  # Smaller surface to render onto and scale everything up
 clock = pygame.time.Clock()
 
-p = np.float64(0.0)  # Current position in the song in seconds
+p = 0  # Current position in the song in seconds
+note_to_str = {
+    21: "A0", 22: "A#0", 23: "B0",
+    24: "C1", 25: "C#1", 26: "D1", 27: "D#1", 28: "E1", 29: "F1", 30: "F#1", 31: "G1", 32: "G#1", 33: "A1", 34: "A#1", 35: "B1",
+    36: "C2", 37: "C#2", 38: "D2", 39: "D#2", 40: "E2", 41: "F2", 42: "F#2", 43: "G2", 44: "G#2", 45: "A2", 46: "A#2", 47: "B2",
+    48: "C3", 49: "C#3", 50: "D3", 51: "D#3", 52: "E3", 53: "F3", 54: "F#3", 55: "G3", 56: "G#3", 57: "A3", 58: "A#3", 59: "B3",
+    60: "C4", 61: "C#4", 62: "D4", 63: "D#4", 64: "E4", 65: "F4", 66: "F#4", 67: "G4", 68: "G#4", 69: "A4", 70: "A#4", 71: "B4",
+    72: "C5", 73: "C#5", 74: "D5", 75: "D#5", 76: "E5", 77: "F5", 78: "F#5", 79: "G5", 80: "G#5", 81: "A5", 82: "A#5", 83: "B5",
+    84: "C6", 85: "C#6", 86: "D6", 87: "D#6", 88: "E6"
+}
+
 
 # Initialize Pygame mixer
 pygame.mixer.init()
@@ -36,7 +46,7 @@ note_list.sort(key=lambda x: x[1])
 
 movement = [False, False]  # Up, Down
 current_arrow = ""  # 'up', 'left', 'down', or 'right'
-current_note_index = 0  # Keep track of the current note being checked
+#current_note_index = 0  # Keep track of the current note being checked
 
 scroll = 0  # up/down
 
@@ -50,49 +60,75 @@ arrow_img = [
 # Convert images to have per-pixel alpha (if needed)
 for i in range(len(arrow_img)):
     arrow_img[i] = arrow_img[i].convert_alpha()
-
-# Preload all the note audio files (assuming 'notes/{note}.wav' format for all notes)
+    
+# Preload all the note audio files
 note_audio_files = {}
 for pitch in set(note[0] for note in note_list):  # Get unique pitches
-    note_audio_files[pitch] = sa.WaveObject.from_wave_file(f"notes/{pitch}.wav")  # Preload the note
-
+    try:
+        sound = pygame.mixer.Sound(f"notes/{pitch}.wav")  # Preload the note
+        note_audio_files[pitch] = sound
+        print(f"Loaded note: notes/{pitch}.wav")
+    except Exception as e:
+        print(f"Error loading note {pitch}: {e}")
 
 def play(note):
-    # Load the piano note (wav file)
-    note = AudioSegment.from_wav(f"notes/{note}.wav")
-
-    # Export the note to a temporary wav file and play it
-    note.export(f"temp_note{note}.wav", format="wav")
-    wave_obj = sa.WaveObject.from_wave_file(f"temp_note{note}.wav")
-
-    # Play the sound
-    play_obj = wave_obj.play()
-
-    # Wait until the sound finishes playing
-    play_obj.wait_done()
-
+    sound = note_audio_files.get(note)
+    if sound and note in note_audio_files.keys():
+        sound.play()
+    else:
+        print(f"Warning: No audio file loaded for note {note}")
+def display_text():
+    print(f"#{p}\tCurrent note: {note_to_str[note_list[p][0]]} ({note_list[p][0]})\tLength: {note_list[p][2].item()}\tElapsed: {note_list[p][1].item()}"
+          +f"\nPress 'E' to edit arrows on current note, and 'O' to output and save.")
+output_json={}
+note_number=0
+for n in note_list:
+    pitch, start, duration = n
+    temp = {
+        "pitch": pitch,
+        "start": start,
+        "duration": duration,
+        "arrows": []
+    }
+    output_json[f"note{note_number}"]=temp
+    note_number+=1
+#print(json.dumps(output_json))
+first_up_press = True
+e=False
+edit_mode = False
 # Main loop
 while True:
-    #print(movement)
-    # Update p based on movement or time
-    print(p)
-    #each item in note_list: (pitch(C4=60), start time, duration)
     if movement[0]:
-        p += 0.0333333333  # Move forward when UP key is held
+        #print(note_list[p][0])
+        if not first_up_press:
+            p = p+1 if p <len(note_list)-1 else p  # Move forward when UP key is pressed
+        else:
+            first_up_press = False
+        display_text()
+        play(note_list[p][0])
+        movement[0] = False
     elif movement[1] and p > 0:
-        p -= 1  # Move backward when DOWN key is held
-    if p < 0:
-        p = 0  # Prevent p from going negative
+        #print(note_list[p][0])
+        p = p-1 if p>0 else p  # Move backward when DOWN key is pressed and don't go below zero
+        display_text()
+        play(note_list[p][0])
+        movement[1] = False
+    if(e):
+        if not edit_mode:
+            print(f"Editing note: {note_to_str[note_list[p][0]]}. Press 'E' again to exit.")
+            edit_mode = True
+        else:
+            print("Exited Edit Mode. ")
+            edit_mode = False
+        e = False
+    if(edit_mode):
+        if current_arrow != '':
+            # if the user presses a WASD key in edit mode, add it to the output_json note's arrows (list-set thing prevents duplicates.)
+            output_json[f"note{p}"].arrows=list(set(output_json[f"note{p}"].arrows).add(current_arrow))
 
-    # Time window: Last 0.033333 seconds
-    time_window = 0.0333333333
-    """
-    # Check if a note's start time is within the last 0.033333 seconds
-    while current_note_index < len(note_list) and p - time_window <= note_list[current_note_index][1] <= p:
-        pitch, start, duration = note_list[current_note_index]
-        play(pitch)
-        current_note_index += 1
-    """
+
+
+    
     # Fill display
     display.fill('grey')
 
@@ -138,6 +174,8 @@ while True:
                 current_arrow = "down"
             if event.key == pygame.K_d:
                 current_arrow = "right"
+            if event.key == pygame.K_e:
+                e = True
 
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_UP:
