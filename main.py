@@ -103,12 +103,10 @@ for n in range(len(note_list)):
         "arrows": []
     }
     output_json[f"note{n}"]=temp
-#print(json.dumps(output_json))
 first_up_press = True
 e=False
 o=False
 edit_mode = False
-frames = 0
 # Main loop
 while True:
     if movement[0]:
