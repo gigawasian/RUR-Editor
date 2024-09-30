@@ -99,7 +99,7 @@ for n in range(len(note_list)):
     temp = {
         "pitch": pitch,
         "start": start,
-        "duration": duration,
+#        "duration": duration,
         "arrows": []
     }
     output_json[f"note{n}"]=temp
